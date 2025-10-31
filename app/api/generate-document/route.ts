@@ -9,23 +9,40 @@ export async function POST(request: NextRequest) {
 
     const zip = new PizZip(buffer);
 
-    const files = Object.keys((zip as any).files || {});
-    const targetXmlFiles = files.filter((name) =>
-      /^word\/(document|header\d*|footer\d*)\.xml$/.test(name)
-    );
+    type ZipObj = { name: string; asText: () => string };
+    const targetXmlFiles = zip.file(/^word\/(document|header\d*|footer\d*)\.xml$/) as ZipObj[];
 
     const entries = Object.entries(filledValues) as Array<[string, string]>;
 
-    targetXmlFiles.forEach((name) => {
-      const xml = zip.file(name)?.asText();
+    const escapeChar = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const makeRunAgnosticPattern = (token: string) => {
+      const chars = Array.from(token);
+      const parts = chars.map((c) => {
+        if (/\s/.test(c)) {
+          return `\\s+(?:<[^>]+>)*`;
+        }
+        return `${escapeChar(c)}(?:<[^>]+>)*`;
+      });
+      return new RegExp(parts.join(''), 'g');
+    };
+
+    targetXmlFiles.forEach((fileObj) => {
+      const xml = fileObj.asText();
       if (!xml) return;
       let modified = xml;
       for (const [placeholder, value] of entries) {
-        const safeValue = value ?? '';
-        const pattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-        modified = modified.replace(pattern, safeValue);
+        const safeValue = (value ?? '').toString();
+        // Try exact literal replacement first (when placeholder is intact within a single run)
+        const literalPattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        let next = modified.replace(literalPattern, safeValue);
+        if (next === modified) {
+          // Fallback to run-agnostic replacement allowing XML tags between characters
+          const runAgnostic = makeRunAgnosticPattern(placeholder);
+          next = modified.replace(runAgnostic, safeValue);
+        }
+        modified = next;
       }
-      zip.file(name, modified);
+      zip.file(fileObj.name, modified);
     });
 
     const outBuffer = zip.generate({ type: 'nodebuffer' });
