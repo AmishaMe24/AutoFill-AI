@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChatMessage, Placeholder } from '@/types';
 
 interface ChatInterfaceProps {
@@ -25,7 +24,6 @@ export default function ChatInterface({
 
   const currentPlaceholder = placeholders[currentIndex];
 
-  // Initialize chat
   useEffect(() => {
     if (placeholders.length > 0) {
       const welcomeMessage: ChatMessage = {
@@ -42,7 +40,6 @@ ${currentPlaceholder.description}`,
     }
   }, [placeholders]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -79,14 +76,12 @@ ${currentPlaceholder.description}`,
 
       const data = await response.json();
 
-      // Save the extracted value
       const newFilledValues = {
         ...filledValues,
         [currentPlaceholder.original]: data.extractedValue,
       };
       setFilledValues(newFilledValues);
 
-      // Add assistant response
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -95,7 +90,6 @@ ${currentPlaceholder.description}`,
       };
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // Move to next placeholder or complete
       if (currentIndex < placeholders.length - 1) {
         setTimeout(() => {
           setCurrentIndex(currentIndex + 1);
@@ -109,13 +103,12 @@ ${currentPlaceholder.description}`,
           setMessages((prev) => [...prev, nextMessage]);
         }, 1000);
       } else {
-        // All done!
         setTimeout(() => {
           const doneMessage: ChatMessage = {
             id: (Date.now() + 2).toString(),
             role: 'assistant',
             content:
-              '🎉 All placeholders filled! Your document is ready. Click "Generate Document" to download.',
+              'All placeholders filled! Your document is ready. Click "Download Document".',
             timestamp: new Date(),
           };
           setMessages((prev) => [...prev, doneMessage]);

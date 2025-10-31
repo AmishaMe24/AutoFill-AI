@@ -30,7 +30,6 @@ export default function DocumentPreview({
     return bytes.buffer;
   };
 
-  // Build a run-agnostic regex that matches across Word's split <w:t> runs
   const escapeChar = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const makeRunAgnosticPattern = (token: string) => {
     const chars = Array.from(token);

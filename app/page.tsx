@@ -62,7 +62,6 @@ export default function Page() {
 
   return (
     <div className="container mx-auto p-6 space-y-6 h-screen overflow-hidden flex flex-col">
-      {/* Hide upload once a document is processed */}
       {!(placeholders.length > 0 || !!originalText) ? (
         <FileUpload onFileProcessed={handleFileProcessed} />
       ) : (
