@@ -144,7 +144,7 @@ ${currentPlaceholder.description}`,
   };
 
   return (
-    <Card className="flex flex-col h-full">
+    <Card className="flex flex-col h-full overflow-hidden">
       {/* Progress indicator */}
       <div className="p-4 border-b bg-gray-50">
         <div className="flex justify-between text-sm mb-2">
@@ -168,7 +168,7 @@ ${currentPlaceholder.description}`,
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <div className="flex-1 p-4 overflow-y-auto" ref={scrollRef}>
         <div className="space-y-4">
           {messages.map((message) => (
             <div
@@ -209,7 +209,7 @@ ${currentPlaceholder.description}`,
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input */}
       <div className="p-4 border-t">
