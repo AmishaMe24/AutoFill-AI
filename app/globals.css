@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+.docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+.docx {
+  box-shadow: none !important;
+  margin: 0 !important;
+}

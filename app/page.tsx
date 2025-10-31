@@ -85,20 +85,24 @@ export default function Page() {
       )}
 
       {(placeholders.length > 0 || !!originalText) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1">
           {placeholders.length > 0 && (
-            <ChatInterface
-              placeholders={placeholders}
-              onComplete={handleComplete}
-            />
+            <div className="md:col-span-4 lg:col-span-4 min-w-0">
+              <ChatInterface
+                placeholders={placeholders}
+                onComplete={handleComplete}
+              />
+            </div>
           )}
           {originalText && (
-            <DocumentPreview
-              originalText={originalText}
-              filledValues={filledValues}
-              originalBuffer={originalBuffer}
-              onDownload={handleDownload}
-            />
+            <div className="md:col-span-8 lg:col-span-8 min-w-0">
+              <DocumentPreview
+                originalText={originalText}
+                filledValues={filledValues}
+                originalBuffer={originalBuffer}
+                onDownload={handleDownload}
+              />
+            </div>
           )}
         </div>
       )}

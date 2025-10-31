@@ -1,7 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import PizZip from 'pizzip';
+import { renderAsync } from 'docx-preview';
 
 interface DocumentPreviewProps {
   originalText: string;
@@ -13,16 +16,76 @@ interface DocumentPreviewProps {
 export default function DocumentPreview({
   originalText,
   filledValues,
+  originalBuffer,
   onDownload,
 }: DocumentPreviewProps) {
-  let previewText = originalText;
-  Object.entries(filledValues).forEach(([placeholder, value]) => {
-    const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    previewText = previewText.replace(
-      new RegExp(escapedPlaceholder, 'g'),
-      `**${value}**`
-    );
-  });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
+
+  const base64ToArrayBuffer = (b64: string): ArrayBuffer => {
+    const binary = atob(b64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  };
+
+  // Build a run-agnostic regex that matches across Word's split <w:t> runs
+  const escapeChar = (c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const makeRunAgnosticPattern = (token: string) => {
+    const chars = Array.from(token);
+    const parts = chars.map((c) => {
+      if (/\s/.test(c)) {
+        return `\\s+(?:<[^>]+>)*`;
+      }
+      return `${escapeChar(c)}(?:<[^>]+>)*`;
+    });
+    return new RegExp(parts.join(''), 'g');
+  };
+
+  useEffect(() => {
+    const renderDoc = async () => {
+      setRenderError(null);
+      try {
+        const buf = base64ToArrayBuffer(originalBuffer);
+        const zip = new PizZip(buf);
+
+        type ZipObj = { name: string; asText: () => string };
+        const xmlFiles = zip.file(/^word\/(document|header\d*|footer\d*)\.xml$/) as ZipObj[];
+
+        const entries = Object.entries(filledValues) as Array<[string, string]>;
+        xmlFiles.forEach((fileObj) => {
+          const xml = fileObj.asText();
+          if (!xml) return;
+          let modified = xml;
+          for (const [placeholder, value] of entries) {
+            const safeValue = (value ?? '').toString();
+            const literalPattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            let next = modified.replace(literalPattern, safeValue);
+            if (next === modified) {
+              const runAgnostic = makeRunAgnosticPattern(placeholder);
+              next = modified.replace(runAgnostic, safeValue);
+            }
+            modified = next;
+          }
+          zip.file(fileObj.name, modified);
+        });
+
+        const out = zip.generate({ type: 'arraybuffer' });
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+          await renderAsync(out, containerRef.current, undefined, {
+            inWrapper: true,
+          });
+        }
+      } catch (e: any) {
+        console.warn('Preview render failed, falling back to text preview', e);
+        setRenderError('preview-failed');
+      }
+    };
+
+    if (originalBuffer) renderDoc();
+  }, [originalBuffer, filledValues]);
 
   return (
     <Card className="p-6">
@@ -32,27 +95,24 @@ export default function DocumentPreview({
       </div>
 
       <div className="border rounded-lg p-6 bg-white max-h-[700px] overflow-y-auto">
-        <div className="prose prose-sm max-w-none">
-          {previewText.split('\n').map((line, idx) => (
-            <p key={idx} className="mb-2 text-sm leading-relaxed">
-              {line.split(/(\*\*.*?\*\*)/).map((part, i) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
-                  return (
-                    <span key={i} className="bg-yellow-200 font-semibold px-1">
-                      {part.slice(2, -2)}
-                    </span>
-                  );
-                }
-                return <span key={i}>{part}</span>;
-              })}
-            </p>
-          ))}
-        </div>
+        <div ref={containerRef} className="docx-preview" />
+        {renderError && (
+          <div className="prose prose-sm max-w-none mt-4">
+            <p className="text-xs text-gray-500">Rich preview failed; showing text fallback.</p>
+            {originalText.split('\n').map((line, idx) => (
+              <p key={idx} className="mb-2 text-sm leading-relaxed">
+                {Object.entries(filledValues).reduce((acc, [placeholder, value]) => {
+                  const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  return acc.replace(new RegExp(escapedPlaceholder, 'g'), value ?? '');
+                }, line)}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
-
-      <p className="text-xs text-gray-500 mt-4 text-center">
-        Filled values are highlighted in yellow
-      </p>
+      {!renderError && (
+        <p className="text-xs text-gray-500 mt-4 text-center">Preview maintains original .docx formatting</p>
+      )}
     </Card>
   );
 }
