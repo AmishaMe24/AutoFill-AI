@@ -32,11 +32,9 @@ export async function POST(request: NextRequest) {
       let modified = xml;
       for (const [placeholder, value] of entries) {
         const safeValue = (value ?? '').toString();
-        // Try exact literal replacement first (when placeholder is intact within a single run)
         const literalPattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
         let next = modified.replace(literalPattern, safeValue);
         if (next === modified) {
-          // Fallback to run-agnostic replacement allowing XML tags between characters
           const runAgnostic = makeRunAgnosticPattern(placeholder);
           next = modified.replace(runAgnostic, safeValue);
         }

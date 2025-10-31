@@ -18,10 +18,13 @@ Your job:
 2. Extract the exact value to fill in the placeholder
 3. Respond conversationally while confirming the value
 4. Format the value appropriately (e.g., dates, currency, proper names)
+5. Do NOT use asterisks (**) or emojis in your responses
+6. For currency amounts, do NOT add dollar signs ($) if the placeholder already contains them
+7. Keep responses clean and professional without special formatting and without any emojis.
 
 Respond in this JSON format:
 {
-  "message": "your conversational response",
+  "message": "your conversational response without asterisks or emojis",
   "extractedValue": "the formatted value to use",
   "needsConfirmation": true/false
 }`;
@@ -42,7 +45,6 @@ Respond in this JSON format:
     try {
       parsedResponse = JSON.parse(responseContent);
     } catch {
-      // Fallback if not JSON
       parsedResponse = {
         message: responseContent,
         extractedValue: message,
