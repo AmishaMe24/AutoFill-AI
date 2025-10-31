@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import mammoth from 'mammoth';
+import PizZip from 'pizzip';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,35 +8,31 @@ export async function POST(request: NextRequest) {
     // Convert base64 back to buffer
     const buffer = Buffer.from(originalBuffer, 'base64');
 
-    // Extract text with formatting info
-    const result = await mammoth.extractRawText({ buffer });
-    let text = result.value;
+    // Load the original docx and perform in-place XML replacements to preserve formatting
+    const zip = new PizZip(buffer);
 
-    // Replace all placeholders with filled values
-    Object.entries(filledValues).forEach(([placeholder, value]) => {
-      text = text.replace(new RegExp(placeholder, 'g'), value as string);
+    const files = Object.keys((zip as any).files || {});
+    const targetXmlFiles = files.filter((name) =>
+      /^word\/(document|header\d*|footer\d*)\.xml$/.test(name)
+    );
+
+    const entries = Object.entries(filledValues) as Array<[string, string]>;
+
+    targetXmlFiles.forEach((name) => {
+      const xml = zip.file(name)?.asText();
+      if (!xml) return;
+      let modified = xml;
+      for (const [placeholder, value] of entries) {
+        // Best-effort literal replacement of tokens like [Company Name] or {CompanyName}
+        const safeValue = value ?? '';
+        const pattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        modified = modified.replace(pattern, safeValue);
+      }
+      zip.file(name, modified);
     });
 
-    // Create new document
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: text.split('\n').map(
-            (line) =>
-              new Paragraph({
-                children: [new TextRun(line)],
-              })
-          ),
-        },
-      ],
-    });
-
-    // Generate buffer
-    const docBuffer = await Packer.toBuffer(doc);
-
-    // Convert to base64 for response
-    const base64Doc = docBuffer.toString('base64');
+    const outBuffer = zip.generate({ type: 'nodebuffer' });
+    const base64Doc = outBuffer.toString('base64');
 
     return NextResponse.json({
       document: base64Doc,

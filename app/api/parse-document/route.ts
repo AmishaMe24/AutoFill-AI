@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mammoth from 'mammoth';
+import Docxtemplater from 'docxtemplater';
+import PizZip from 'pizzip';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
@@ -22,42 +23,62 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Extract text from docx
-    const result = await mammoth.extractRawText({ buffer });
-    const text = result.value;
-
-    // Use OpenAI to detect placeholders
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a legal document analyzer. Identify all placeholders in documents that need to be filled. 
-          Placeholders can be in formats like: [PLACEHOLDER], {{placeholder}}, __PLACEHOLDER__, or similar patterns.
-          Return ONLY a valid JSON array with this exact structure, no additional text:
-          [{"id": "1", "name": "descriptive_name", "original": "[EXACT TEXT]", "description": "what information is needed", "position": 0}]`,
-        },
-        {
-          role: 'user',
-          content: `Analyze this legal document and extract all placeholders:\n\n${text}`,
-        },
-      ],
-      temperature: 0.3,
+    // Parse docx using docxtemplater and extract full text
+    const zip = new PizZip(buffer);
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
     });
+    const text = doc.getFullText();
 
-    const responseContent = completion.choices[0].message.content || '[]';
-    
-    // Parse the JSON response
-    let placeholders;
-    try {
-      placeholders = JSON.parse(responseContent);
-    } catch (parseError) {
-      // If JSON parsing fails, try to extract JSON from the response
-      const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        placeholders = JSON.parse(jsonMatch[0]);
-      } else {
-        placeholders = [];
+    // Deterministically detect placeholders: {tag} and [tag]
+    const curlyMatches = text.match(/\{[^}]+\}/g) || [];
+    const bracketMatches = text.match(/\[[^\]]+\]/g) || [];
+    const tags = [...new Set([...curlyMatches, ...bracketMatches])];
+
+    const normalizeName = (token: string) => {
+      const inner = token.slice(1, -1).trim();
+      return inner.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    };
+
+    let placeholders = tags.map((t, i) => ({
+      id: (i + 1).toString(),
+      name: normalizeName(t),
+      original: t,
+      description: `Fill in the ${t.slice(1, -1).trim()} field`,
+      position: text.indexOf(t),
+    }));
+
+    // Optionally enhance descriptions with OpenAI (context-aware), keeping the same structure
+    if (process.env.OPENAI_API_KEY && placeholders.length > 0) {
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4-turbo-preview',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a legal document analyzer. For each placeholder provided (which may be in {tag} or [tag] style), give a clear, helpful description of what information should be filled in.
+              Return ONLY a valid JSON array with this exact structure, no additional text:
+              [{"id": "1", "name": "normalized_key", "original": "{tag} or [tag] as found", "description": "what information is needed", "position": 0}]`,
+            },
+            {
+              role: 'user',
+              content: `Enhance these placeholders with better descriptions. Document context (truncated):\n\n${text.substring(0, 2000)}\n\nPlaceholders: ${JSON.stringify(placeholders)}`,
+            },
+          ],
+          temperature: 0.2,
+        });
+        const responseContent = completion.choices[0].message.content || '[]';
+        try {
+          const enhanced = JSON.parse(responseContent);
+          if (Array.isArray(enhanced) && enhanced.length === placeholders.length) {
+            placeholders = enhanced;
+          }
+        } catch (e) {
+          console.warn('OpenAI enhancement parse failed, using basic placeholders');
+        }
+      } catch (aiErr) {
+        console.warn('OpenAI enhancement failed, using basic placeholders:', aiErr);
       }
     }
 
