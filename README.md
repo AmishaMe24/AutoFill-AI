@@ -1,10 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Legal Document Filler
+
+This is a [Next.js](https://nextjs.org) application that helps you fill legal documents by automatically detecting placeholders and providing an interactive chat interface to collect the required information.
+
+## Features
+
+- Upload .docx legal documents
+- Automatic detection of placeholders in `{{placeholder}}` and `[placeholder]` formats
+- Interactive chat interface powered by Groq AI to collect placeholder values
+- Document preview with filled values
+- Download completed documents with original formatting preserved
+
+## Environment Variables
+
+Create a `.env.local` file in the root directory and add your Groq API key:
+
+```
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+You can get a free API key from [Groq Console](https://console.groq.com/).
 
 ## Getting Started
 
-First, run the development server:
+First, install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
 # or
 yarn dev

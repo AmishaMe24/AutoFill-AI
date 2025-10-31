@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Docxtemplater from 'docxtemplater';
 import PizZip from 'pizzip';
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
@@ -49,11 +49,10 @@ export async function POST(request: NextRequest) {
       position: text.indexOf(t),
     }));
 
-    // Optionally enhance descriptions with OpenAI (context-aware), keeping the same structure
-    if (process.env.OPENAI_API_KEY && placeholders.length > 0) {
+    if (process.env.GROQ_API_KEY && placeholders.length > 0) {
       try {
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-4-turbo-preview',
+        const completion = await groq.chat.completions.create({
+          model: 'openai/gpt-oss-120b',
           messages: [
             {
               role: 'system',
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
               content: `Enhance these placeholders with better descriptions. Document context (truncated):\n\n${text.substring(0, 2000)}\n\nPlaceholders: ${JSON.stringify(placeholders)}`,
             },
           ],
-          temperature: 0.2,
+          temperature: 0,
         });
         const responseContent = completion.choices[0].message.content || '[]';
         try {

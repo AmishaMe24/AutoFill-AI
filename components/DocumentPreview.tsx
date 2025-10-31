@@ -15,11 +15,11 @@ export default function DocumentPreview({
   filledValues,
   onDownload,
 }: DocumentPreviewProps) {
-  // Replace placeholders in text for preview
   let previewText = originalText;
   Object.entries(filledValues).forEach(([placeholder, value]) => {
+    const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     previewText = previewText.replace(
-      new RegExp(placeholder, 'g'),
+      new RegExp(escapedPlaceholder, 'g'),
       `**${value}**`
     );
   });

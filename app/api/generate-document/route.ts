@@ -5,10 +5,8 @@ export async function POST(request: NextRequest) {
   try {
     const { originalBuffer, filledValues } = await request.json();
 
-    // Convert base64 back to buffer
     const buffer = Buffer.from(originalBuffer, 'base64');
 
-    // Load the original docx and perform in-place XML replacements to preserve formatting
     const zip = new PizZip(buffer);
 
     const files = Object.keys((zip as any).files || {});
@@ -23,7 +21,6 @@ export async function POST(request: NextRequest) {
       if (!xml) return;
       let modified = xml;
       for (const [placeholder, value] of entries) {
-        // Best-effort literal replacement of tokens like [Company Name] or {CompanyName}
         const safeValue = value ?? '';
         const pattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
         modified = modified.replace(pattern, safeValue);
