@@ -88,13 +88,13 @@ export default function DocumentPreview({
   }, [originalBuffer, filledValues]);
 
   return (
-    <Card className="p-6">
+    <Card className="p-6 flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Document Preview</h3>
         <Button onClick={onDownload}>Download .docx</Button>
       </div>
 
-      <div className="border rounded-lg p-6 bg-white max-h-[700px] overflow-y-auto">
+      <div className="border rounded-lg p-6 bg-white flex-1 overflow-y-auto">
         <div ref={containerRef} className="docx-preview" />
         {renderError && (
           <div className="prose prose-sm max-w-none mt-4">
@@ -110,9 +110,6 @@ export default function DocumentPreview({
           </div>
         )}
       </div>
-      {!renderError && (
-        <p className="text-xs text-gray-500 mt-4 text-center">Preview maintains original .docx formatting</p>
-      )}
     </Card>
   );
 }

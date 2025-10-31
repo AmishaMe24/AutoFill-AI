@@ -61,7 +61,7 @@ export default function Page() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6 min-h-screen flex flex-col">
+    <div className="container mx-auto p-6 space-y-6 h-screen overflow-hidden flex flex-col">
       {/* Hide upload once a document is processed */}
       {!(placeholders.length > 0 || !!originalText) ? (
         <FileUpload onFileProcessed={handleFileProcessed} />
@@ -85,9 +85,9 @@ export default function Page() {
       )}
 
       {(placeholders.length > 0 || !!originalText) && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 h-full overflow-hidden">
           {placeholders.length > 0 && (
-            <div className="md:col-span-4 lg:col-span-4 min-w-0">
+            <div className="md:col-span-4 lg:col-span-4 min-w-0 h-full overflow-hidden">
               <ChatInterface
                 placeholders={placeholders}
                 onComplete={handleComplete}
@@ -95,7 +95,7 @@ export default function Page() {
             </div>
           )}
           {originalText && (
-            <div className="md:col-span-8 lg:col-span-8 min-w-0">
+            <div className="md:col-span-8 lg:col-span-8 min-w-0 h-full overflow-hidden">
               <DocumentPreview
                 originalText={originalText}
                 filledValues={filledValues}
