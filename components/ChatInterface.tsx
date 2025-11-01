@@ -80,7 +80,7 @@ ${currentPlaceholder.description}`,
 
       const newFilledValues = {
         ...filledValues,
-        [currentPlaceholder.original]: data.extractedValue,
+        [currentPlaceholder.name  ]: data.extractedValue,
       };
       setFilledValues(newFilledValues);
 

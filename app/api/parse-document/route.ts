@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     try {
       const completion = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-20b',
         messages: [
           {
             role: 'system',
@@ -68,29 +68,48 @@ Your task is to find EVERY placeholder, variable, or field that needs to be fill
 1. Bracketed placeholders: [Company Name], [Date], [Amount], etc.
 2. Curly brace placeholders: {company}, {investor_name}, {date}, etc.
 3. Underscored blanks: ____________, _____, etc.
-4. Text patterns like "COMPANY NAME", "DATE:", "AMOUNT:", etc.
+4. Text patterns like "By:_______", "Name:______", "Title:______", etc.
 5. Form fields and any other fillable content
 6. Signature lines, date lines, and other completion fields
 7. Any text that appears to be a placeholder even without brackets
 
+CRITICAL NAMING CONVENTION: When you find multiple placeholders with the same concept (like "Name:" appearing in different sections), use a numbering system:
+- First occurrence: "name_1"
+- Second occurrence: "name_2" 
+- Third occurrence: "name_3"
+- And so on...
+
+Examples:
+- If you find "Name:" in company section and "Name:" in investor section, name them "name_1" and "name_2"
+- If you find "Address:" twice, name them "address_1" and "address_2"
+- If you find "By:" multiple times, name them "by_1", "by_2", etc.
+- If you find "Email:" twice, name them "email_1" and "email_2"
+
 For each placeholder found, determine:
 - The exact text as it appears in the document
-- A normalized identifier (lowercase, underscores)
-- A clear description of what should be filled in
+- A normalized identifier using the numbering system (lowercase, underscores, with _1, _2, etc.)
+- A clear description that indicates which occurrence this is (e.g., "First name field", "Second name field")
 - The approximate position in the document
 
 Return ONLY a valid JSON array with this exact structure:
 [
   {
     "id": "1",
-    "name": "company_name", 
-    "original": "[Company Name]",
-    "description": "The legal name of the company",
+    "name": "name_1", 
+    "original": "Name:",
+    "description": "First name field in the document",
     "position": 150
+  },
+  {
+    "id": "2",
+    "name": "name_2", 
+    "original": "Name:",
+    "description": "Second name field in the document",
+    "position": 250
   }
 ]
 
-Be thorough - find ALL placeholders, even if they use different formats or are subtle. Include variations of the same concept (e.g., "Company Name" and "COMPANY" should both be found).`,
+Be thorough - find ALL placeholders and use the numbering system for any duplicates.`,
           },
           {
             role: 'user',
@@ -98,7 +117,7 @@ Be thorough - find ALL placeholders, even if they use different formats or are s
           },
         ],
         temperature: 0,
-        max_tokens: 4000,
+        max_tokens: 8000,
       });
 
       const responseContent = completion.choices[0].message.content || '[]';

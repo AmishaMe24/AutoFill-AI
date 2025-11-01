@@ -101,14 +101,27 @@ export default function DocumentPreview({
         {renderError && (
           <div className="prose prose-sm max-w-none mt-4">
             <p className="text-xs text-gray-500">Rich preview failed; showing text fallback.</p>
-            {originalText.split('\n').map((line, idx) => (
-              <p key={idx} className="mb-2 text-sm leading-relaxed">
-                {Object.entries(filledValues).reduce((acc, [placeholder, value]) => {
-                  const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                  return acc.replace(new RegExp(escapedPlaceholder, 'g'), value ?? '');
-                }, line)}
-              </p>
-            ))}
+            {originalText.split('\n').map((line, idx) => {
+              const placeholderMap = new Map<string, string>();
+              placeholders.forEach(placeholder => {
+                placeholderMap.set(placeholder.name, placeholder.original);
+              });
+
+              let processedLine = line;
+              Object.entries(filledValues).forEach(([placeholderName, value]) => {
+                const originalText = placeholderMap.get(placeholderName);
+                if (originalText) {
+                  const escapedPlaceholder = originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  processedLine = processedLine.replace(new RegExp(escapedPlaceholder, 'g'), value ?? '');
+                }
+              });
+
+              return (
+                <p key={idx} className="mb-2 text-sm leading-relaxed">
+                  {processedLine}
+                </p>
+              );
+            })}
           </div>
         )}
       </div>
