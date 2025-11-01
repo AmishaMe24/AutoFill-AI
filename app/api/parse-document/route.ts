@@ -73,6 +73,8 @@ Your task is to find EVERY placeholder, variable, or field that needs to be fill
 6. Signature lines, date lines, and other completion fields
 7. Any text that appears to be a placeholder even without brackets
 
+IMPORTANT: Placeholders are CASE-SENSITIVE. Treat {Company Name} and {COMPANY NAME} as completely different placeholders. Each variation in capitalization, spacing, or formatting should be identified as a separate placeholder.
+
 CRITICAL NAMING CONVENTION: When you find multiple placeholders with the same concept (like "Name:" appearing in different sections), use a numbering system:
 - First occurrence: "name_1"
 - Second occurrence: "name_2" 

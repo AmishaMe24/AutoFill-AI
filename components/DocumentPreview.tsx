@@ -55,21 +55,56 @@ export default function DocumentPreview({
         type ZipObj = { name: string; asText: () => string };
         const xmlFiles = zip.file(/^word\/(document|header\d*|footer\d*)\.xml$/) as ZipObj[];
 
-        const entries = Object.entries(filledValues) as Array<[string, string]>;
+        // Create placeholder map
+        const placeholderMap = new Map<string, string>();
+        placeholders.forEach(placeholder => {
+          placeholderMap.set(placeholder.name, placeholder.original);
+        });
+
         xmlFiles.forEach((fileObj) => {
           const xml = fileObj.asText();
           if (!xml) return;
           let modified = xml;
-          for (const [placeholder, value] of entries) {
-            const safeValue = (value ?? '').toString();
-            const literalPattern = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-            let next = modified.replace(literalPattern, safeValue);
-            if (next === modified) {
-              const runAgnostic = makeRunAgnosticPattern(placeholder);
-              next = modified.replace(runAgnostic, safeValue);
+          
+          const sortedEntries = Object.entries(filledValues)
+            .map(([placeholderName, value]) => {
+              const placeholder = placeholders?.find((p: Placeholder) => p.name === placeholderName);
+              return {
+                placeholderName,
+                value,
+                originalText: placeholderMap.get(placeholderName),
+                position: placeholder?.position || 0
+              };
+            })
+            .filter(entry => entry.originalText)
+            .sort((a, b) => b.position - a.position);
+          
+          sortedEntries.forEach(({ placeholderName, value, originalText }) => {
+            if (originalText) {
+              const safeValue = (value ?? '').toString();
+              
+              const match = placeholderName.match(/_(\d+)$/);
+              const occurrenceNumber = match ? parseInt(match[1]) : 1;
+              
+              const literalPattern = new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+              
+              let matchCount = 0;
+              modified = modified.replace(literalPattern, (match) => {
+                matchCount++;
+                return matchCount === occurrenceNumber ? safeValue : match;
+              });
+              
+              if (matchCount === 0) {
+                const runAgnostic = makeRunAgnosticPattern(originalText);
+                matchCount = 0;
+                modified = modified.replace(runAgnostic, (match) => {
+                  matchCount++;
+                  return matchCount === occurrenceNumber ? safeValue : match;
+                });
+              }
             }
-            modified = next;
-          }
+          });
+
           zip.file(fileObj.name, modified);
         });
 
@@ -87,7 +122,7 @@ export default function DocumentPreview({
     };
 
     if (originalBuffer) renderDoc();
-  }, [originalBuffer, filledValues]);
+  }, [originalBuffer, filledValues, placeholders]);
 
   return (
     <Card className="p-6 flex flex-col h-full">
@@ -101,27 +136,50 @@ export default function DocumentPreview({
         {renderError && (
           <div className="prose prose-sm max-w-none mt-4">
             <p className="text-xs text-gray-500">Rich preview failed; showing text fallback.</p>
-            {originalText.split('\n').map((line, idx) => {
+            {(() => {
               const placeholderMap = new Map<string, string>();
               placeholders.forEach(placeholder => {
                 placeholderMap.set(placeholder.name, placeholder.original);
               });
 
-              let processedLine = line;
-              Object.entries(filledValues).forEach(([placeholderName, value]) => {
-                const originalText = placeholderMap.get(placeholderName);
+              let processedText = originalText;
+              
+              const sortedEntries = Object.entries(filledValues)
+                .map(([placeholderName, value]) => {
+                  const placeholder = placeholders?.find((p: Placeholder) => p.name === placeholderName);
+                  return {
+                    placeholderName,
+                    value,
+                    originalText: placeholderMap.get(placeholderName),
+                    position: placeholder?.position || 0
+                  };
+                })
+                .filter(entry => entry.originalText)
+                .sort((a, b) => b.position - a.position);
+              
+              sortedEntries.forEach(({ placeholderName, value, originalText }) => {
                 if (originalText) {
-                  const escapedPlaceholder = originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                  processedLine = processedLine.replace(new RegExp(escapedPlaceholder, 'g'), value ?? '');
+                  const safeValue = (value ?? '').toString();
+                  
+                  const match = placeholderName.match(/_(\d+)$/);
+                  const occurrenceNumber = match ? parseInt(match[1]) : 1;
+                  
+                  const literalPattern = new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                  
+                  let matchCount = 0;
+                  processedText = processedText.replace(literalPattern, (match) => {
+                    matchCount++;
+                    return matchCount === occurrenceNumber ? safeValue : match;
+                  });
                 }
               });
 
-              return (
+              return processedText.split('\n').map((line, idx) => (
                 <p key={idx} className="mb-2 text-sm leading-relaxed">
-                  {processedLine}
+                  {line}
                 </p>
-              );
-            })}
+              ));
+            })()}
           </div>
         )}
       </div>
