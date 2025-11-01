@@ -1,4 +1,4 @@
-# Legal Document Filler
+# AutoFill AI
 
 <img width="1814" height="1080" alt="Legal Document Filler Interface" src="https://github.com/user-attachments/assets/03c246e1-2357-422c-b2dc-88624534a709" />
 <img width="1814" height="1080" alt="Document Preview with Chat Interface" src="https://github.com/user-attachments/assets/0d8d7ed9-d460-4104-9627-ff9d1fc148b0" />
