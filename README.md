@@ -5,7 +5,7 @@
 
 ## Overview
 
-Legal Document Filler is an intelligent web application that streamlines the process of filling legal documents by automatically detecting placeholders and providing an AI-powered chat interface to collect required information. The application combines document processing, natural language processing, and real-time preview capabilities to create a seamless document completion experience.
+AutoFill AI is an intelligent web application that streamlines the process of filling legal documents by automatically detecting placeholders and providing an AI-powered chat interface to collect required information. The application combines document processing, natural language processing, and real-time preview capabilities to create a seamless document completion experience.
 
 ## 🚀 Features
 
