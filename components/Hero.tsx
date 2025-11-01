@@ -19,7 +19,7 @@ export default function Hero({ hasContent, onFileProcessed, onReset }: HeroProps
     return (
       <div className="flex justify-between items-center">
         <div className="text-sm text-gray-600">
-          Welcome to Voice Based Legal Document Assistant
+          Welcome to AutoFill AI
         </div>
         <Button variant="outline" onClick={onReset}>
           Back to Home
@@ -32,7 +32,7 @@ export default function Hero({ hasContent, onFileProcessed, onReset }: HeroProps
     <div className="text-center space-y-8 py-12">
       <div className="space-y-4">
         <h1 className="text-4xl font-bold text-gray-900">
-          Legal Document Assistant
+          AutoFill AI
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Upload your legal documents and fill them out using the conversational chatbot. 
