@@ -27,29 +27,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Parse docx using docxtemplater and extract full text
     const zip = new PizZip(buffer);
+
+    const documentXml = zip.file('word/document.xml');
+    if (documentXml) {
+      let xml = documentXml.asText();
+      
+      xml = xml.replace(/\[([^\]]+)\]/g, '{$1}');
+      zip.file('word/document.xml', xml);
+    }
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
     });
     const text = doc.getFullText();
-
+    
     let placeholders: Placeholder[] = [];
 
-    // Use LLM to comprehensively find all placeholders in the document
-    if (process.env.GROQ_API_KEY) {
-      try {
-        const completion = await groq.chat.completions.create({
-          model: 'openai/gpt-oss-20b',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an expert document analyzer specializing in identifying ALL types of placeholders and fillable fields in legal and business documents.
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json(
+        { error: 'LLM API key not configured. Please set GROQ_API_KEY environment variable.' },
+        { status: 500 }
+      );
+    }
+
+    try {
+      const completion = await groq.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert document analyzer specializing in identifying ALL types of placeholders and fillable fields in legal and business documents.
 
 Your task is to find EVERY placeholder, variable, or field that needs to be filled in the document, regardless of format. This includes:
 
@@ -79,106 +91,68 @@ Return ONLY a valid JSON array with this exact structure:
 ]
 
 Be thorough - find ALL placeholders, even if they use different formats or are subtle. Include variations of the same concept (e.g., "Company Name" and "COMPANY" should both be found).`,
-            },
-            {
-              role: 'user',
-              content: `Analyze this document text and find ALL placeholders that need to be filled:\n\n${text}`,
-            },
-          ],
-          temperature: 0,
-          max_tokens: 4000,
-        });
+          },
+          {
+            role: 'user',
+            content: `Analyze this document text and find ALL placeholders that need to be filled:\n\n${text}`,
+          },
+        ],
+        temperature: 0,
+        max_tokens: 4000,
+      });
 
-        const responseContent = completion.choices[0].message.content || '[]';
-        console.log('LLM placeholder detection response:', responseContent);
-        
-        // Strip markdown code blocks if present
-        const cleanedContent = responseContent
-          .replace(/^```json\s*/i, '')  // Remove opening ```json
-          .replace(/```\s*$/, '')       // Remove closing ```
-          .trim();
-        
-        try {
-          const llmPlaceholders = JSON.parse(cleanedContent);
-          if (Array.isArray(llmPlaceholders)) {
-            placeholders = llmPlaceholders;
-            console.log(`LLM found ${placeholders.length} placeholders`);
-          } else {
-            throw new Error('Response is not an array');
-          }
-        } catch (parseError) {
-          console.warn('LLM response parse failed, falling back to regex detection:', parseError);
-          // Fallback to original regex method
-          const curlyMatches = text.match(/\{[^}]+\}/g) || [];
-          const bracketMatches = text.match(/\[[^\]]+\]/g) || [];
-          const tags = [...new Set([...curlyMatches, ...bracketMatches])];
+      const responseContent = completion.choices[0].message.content || '[]';
+      let cleanedContent = responseContent;
 
-          const normalizeName = (token: string) => {
-            const inner = token.slice(1, -1).trim();
-            return inner.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-          };
+      // First try to extract JSON array from response
+      const jsonStart = cleanedContent.indexOf('[');
+      const jsonEnd = cleanedContent.lastIndexOf(']');
 
-          placeholders = tags.map((t, i) => ({
-            id: (i + 1).toString(),
-            name: normalizeName(t),
-            original: t,
-            description: `Fill in the ${t.slice(1, -1).trim()} field`,
-            position: text.indexOf(t),
-          }));
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        cleanedContent = cleanedContent.substring(jsonStart, jsonEnd + 1);
+      } else {
+        if (cleanedContent.startsWith('```json')) {
+          cleanedContent = cleanedContent.slice(7);
         }
-      } catch (aiError) {
-        console.warn('LLM placeholder detection failed, using regex fallback:', aiError);
-        // Fallback to original regex method
-        const curlyMatches = text.match(/\{[^}]+\}/g) || [];
-        const bracketMatches = text.match(/\[[^\]]+\]/g) || [];
-        const tags = [...new Set([...curlyMatches, ...bracketMatches])];
-
-        const normalizeName = (token: string) => {
-          const inner = token.slice(1, -1).trim();
-          return inner.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-        };
-
-        placeholders = tags.map((t, i) => ({
-          id: (i + 1).toString(),
-          name: normalizeName(t),
-          original: t,
-          description: `Fill in the ${t.slice(1, -1).trim()} field`,
-          position: text.indexOf(t),
-        }));
+        if (cleanedContent.startsWith('```')) {
+          cleanedContent = cleanedContent.slice(3);
+        }
+        if (cleanedContent.endsWith('```')) {
+          cleanedContent = cleanedContent.slice(0, -3);
+        }
       }
-    } else {
-      // No API key, use regex fallback
-      const curlyMatches = text.match(/\{[^}]+\}/g) || [];
-      const bracketMatches = text.match(/\[[^\]]+\]/g) || [];
-      const tags = [...new Set([...curlyMatches, ...bracketMatches])];
 
-      const normalizeName = (token: string) => {
-        const inner = token.slice(1, -1).trim();
-        return inner.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-      };
-
-      placeholders = tags.map((t, i) => ({
-        id: (i + 1).toString(),
-        name: normalizeName(t),
-        original: t,
-        description: `Fill in the ${t.slice(1, -1).trim()} field`,
-        position: text.indexOf(t),
-      }));
+      cleanedContent = cleanedContent.trim();
+      
+      const llmPlaceholders = JSON.parse(cleanedContent);
+      if (Array.isArray(llmPlaceholders)) {
+        placeholders = llmPlaceholders;
+        console.log(`LLM found ${placeholders.length} placeholders`);
+      } else {
+        throw new Error('LLM returned invalid format - expected array');
+      }
+    } catch (error) {
+      console.error('LLM placeholder detection failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to analyze document placeholders', details: String(error) },
+        { status: 500 }
+      );
     }
 
-    const base64Buffer = buffer.toString('base64');
+    const convertedBuffer = Buffer.from(zip.generate({ type: 'nodebuffer' }));
+    const base64Buffer = convertedBuffer.toString('base64');
 
     return NextResponse.json({
       text,
       placeholders,
       originalBuffer: base64Buffer,
-      detectionMethod: process.env.GROQ_API_KEY ? 'llm' : 'regex',
+      detectionMethod: 'llm-only',
       totalPlaceholders: placeholders.length,
     });
   } catch (error) {
     console.error('Parse error:', error);
     return NextResponse.json(
-      { error: 'Failed to parse document' },
+      { error: 'Failed to parse document', details: String(error) },
       { status: 500 }
     );
   }

@@ -26,7 +26,13 @@ export default function Page() {
     setFilledValues({});
   };
 
+  const handleValueUpdate = (values: Record<string, string>) => {
+    console.log('Page received value update:', values);
+    setFilledValues(values || {});
+  };
+
   const handleComplete = (values: Record<string, string>) => {
+    console.log('Page received completion:', values);
     setFilledValues(values || {});
   };
 
@@ -34,10 +40,16 @@ export default function Page() {
     if (!originalBuffer) return;
     setDownloading(true);
     try {
+      const payload = { 
+        originalBuffer, 
+        filledValues, 
+        placeholders 
+      };
+      
       const res = await fetch("/api/generate-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ originalBuffer, filledValues }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       const base64Doc: string = data?.document || "";
@@ -90,6 +102,7 @@ export default function Page() {
               <ChatInterface
                 placeholders={placeholders}
                 onComplete={handleComplete}
+                onValueUpdate={handleValueUpdate}
               />
             </div>
           )}
@@ -99,6 +112,7 @@ export default function Page() {
                 originalText={originalText}
                 filledValues={filledValues}
                 originalBuffer={originalBuffer}
+                placeholders={placeholders}
                 onDownload={handleDownload}
               />
             </div>

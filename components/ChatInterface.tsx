@@ -9,11 +9,13 @@ import { ChatMessage, Placeholder } from '@/types';
 interface ChatInterfaceProps {
   placeholders: Placeholder[];
   onComplete: (filledValues: Record<string, string>) => void;
+  onValueUpdate?: (filledValues: Record<string, string>) => void;
 }
 
 export default function ChatInterface({
   placeholders,
   onComplete,
+  onValueUpdate,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -81,6 +83,11 @@ ${currentPlaceholder.description}`,
         [currentPlaceholder.original]: data.extractedValue,
       };
       setFilledValues(newFilledValues);
+
+      if (onValueUpdate) {
+        console.log('Calling onValueUpdate with:', newFilledValues);
+        onValueUpdate(newFilledValues);
+      }
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
