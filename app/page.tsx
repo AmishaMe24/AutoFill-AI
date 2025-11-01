@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { saveAs } from "file-saver";
-import { Button } from "@/components/ui/button";
-import FileUpload from "@/components/FileUpload";
+import Hero from "@/components/Hero";
 import ChatInterface from "@/components/ChatInterface";
 import DocumentPreview from "@/components/DocumentPreview";
 import type { Placeholder } from "@/types";
@@ -72,28 +71,20 @@ export default function Page() {
     }
   };
 
+  const handleReset = () => {
+    setOriginalText("");
+    setOriginalBuffer("");
+    setPlaceholders([]);
+    setFilledValues({});
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6 h-screen overflow-hidden flex flex-col">
-      {!(placeholders.length > 0 || !!originalText) ? (
-        <FileUpload onFileProcessed={handleFileProcessed} />
-      ) : (
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-gray-600">
-           Welcome to Voice Based Legal Document Assistant
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setOriginalText("");
-              setOriginalBuffer("");
-              setPlaceholders([]);
-              setFilledValues({});
-            }}
-          >
-            Back to Home
-          </Button>
-        </div>
-      )}
+      <Hero 
+        hasContent={placeholders.length > 0 || !!originalText}
+        onFileProcessed={handleFileProcessed}
+        onReset={handleReset}
+      />
 
       {(placeholders.length > 0 || !!originalText) && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch flex-1 h-full overflow-hidden">

@@ -128,6 +128,7 @@ Be thorough - find ALL placeholders, even if they use different formats or are s
       if (Array.isArray(llmPlaceholders)) {
         placeholders = llmPlaceholders;
         console.log(`LLM found ${placeholders.length} placeholders`);
+        console.log('JSON Placeholders:', JSON.stringify(placeholders, null, 2));
       } else {
         throw new Error('LLM returned invalid format - expected array');
       }

@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import PizZip from 'pizzip';
 import { renderAsync } from 'docx-preview';
+import type { Placeholder } from '@/types';
 
 interface DocumentPreviewProps {
   originalText: string;
   filledValues: Record<string, string>;
   originalBuffer: string;
+  placeholders: Placeholder[];
   onDownload: () => void;
 }
 
@@ -17,6 +19,7 @@ export default function DocumentPreview({
   originalText,
   filledValues,
   originalBuffer,
+  placeholders,
   onDownload,
 }: DocumentPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,7 +80,7 @@ export default function DocumentPreview({
             inWrapper: true,
           });
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.warn('Preview render failed, falling back to text preview', e);
         setRenderError('preview-failed');
       }
