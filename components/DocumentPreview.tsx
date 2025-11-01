@@ -61,11 +61,18 @@ export default function DocumentPreview({
           placeholderMap.set(placeholder.name, placeholder.original);
         });
 
+        // Debug logging
+        console.log('=== DocumentPreview Debug ===');
+        console.log('filledValues:', filledValues);
+        console.log('placeholders:', placeholders);
+        console.log('placeholderMap:', Object.fromEntries(placeholderMap));
+
         xmlFiles.forEach((fileObj) => {
           const xml = fileObj.asText();
           if (!xml) return;
           let modified = xml;
           
+          // Sort placeholders by position to replace from end to beginning
           const sortedEntries = Object.entries(filledValues)
             .map(([placeholderName, value]) => {
               const placeholder = placeholders?.find((p: Placeholder) => p.name === placeholderName);
@@ -79,21 +86,29 @@ export default function DocumentPreview({
             .filter(entry => entry.originalText)
             .sort((a, b) => b.position - a.position);
           
+          console.log('sortedEntries for replacement:', sortedEntries);
+          
           sortedEntries.forEach(({ placeholderName, value, originalText }) => {
             if (originalText) {
               const safeValue = (value ?? '').toString();
               
+              // Extract the number from placeholder name (e.g., "name_2" -> 2)
               const match = placeholderName.match(/_(\d+)$/);
               const occurrenceNumber = match ? parseInt(match[1]) : 1;
               
+              console.log(`Replacing ${placeholderName} (occurrence ${occurrenceNumber}) with "${safeValue}"`);
+              
+              // Create pattern to find all occurrences
               const literalPattern = new RegExp(originalText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
               
+              // Find all matches and replace only the specific occurrence
               let matchCount = 0;
               modified = modified.replace(literalPattern, (match) => {
                 matchCount++;
                 return matchCount === occurrenceNumber ? safeValue : match;
               });
               
+              // If literal replacement didn't work, try run-agnostic pattern
               if (matchCount === 0) {
                 const runAgnostic = makeRunAgnosticPattern(originalText);
                 matchCount = 0;
@@ -102,6 +117,8 @@ export default function DocumentPreview({
                   return matchCount === occurrenceNumber ? safeValue : match;
                 });
               }
+              
+              console.log(`Found ${matchCount} matches for "${originalText}"`);
             }
           });
 
@@ -171,6 +188,8 @@ export default function DocumentPreview({
                     matchCount++;
                     return matchCount === occurrenceNumber ? safeValue : match;
                   });
+                  
+                  console.log(`Text fallback: Found ${matchCount} matches for "${originalText}"`);
                 }
               });
 
@@ -179,7 +198,7 @@ export default function DocumentPreview({
                   {line}
                 </p>
               ));
-            })()}
+            })()} 
           </div>
         )}
       </div>
